@@ -1,14 +1,10 @@
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastmcp import FastMCP
 from fastmcp.server.http import create_streamable_http_app, _current_http_request
 from mq import create_table, get_db
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await create_table()
-    yield
 
 mcp = FastMCP("generic")
 
@@ -38,43 +34,51 @@ async def send_to_agent(name: str, msg: str, msg_id: str | None = None) -> str:
 
 @mcp.tool
 async def check_mail() -> dict | None:
-    """Checks for the oldest unread message."""
-    db = await get_db()
+    """Checks for the oldest unread message, waiting until one is available."""
     to_agent = _who_am_i()
-    
-    async with db.execute("BEGIN IMMEDIATE"):
-        cursor = await db.execute(
-            "SELECT id, from_agent, content FROM messages WHERE to_agent = ? AND done = 0 ORDER BY created LIMIT 1",
-            (to_agent,),
-        )
-        row = await cursor.fetchone()
-        
-        if row:
-            await db.execute("UPDATE messages SET done = 1 WHERE id = ?", (row["id"],))
-            await db.commit()
-    
-    await db.close()
-    
-    if row:
-        return dict(row)
-    return None
+
+    while True:
+        db = await get_db()
+        try:
+            await db.execute("BEGIN IMMEDIATE")
+            cursor = await db.execute(
+                "SELECT id, from_agent, content FROM messages WHERE to_agent = ? AND done = 0 ORDER BY created LIMIT 1",
+                (to_agent,),
+            )
+            row = await cursor.fetchone()
+            await cursor.close()
+
+            if row:
+                await db.execute("UPDATE messages SET done = 1 WHERE id = ?", (row["id"],))
+                await db.commit()
+                return dict(row)
+            else:
+                # If no message is found, we must end the transaction.
+                await db.rollback()
+        finally:
+            await db.close()
+
+        # Wait for a short interval before polling again.
+        await asyncio.sleep(1)
 
 
 sub_app = create_streamable_http_app(
     server=mcp,
     streamable_http_path="/{agent}/mcp/",
-    json_response=True
+    json_response=True,
 )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with sub_app.router.lifespan_context(app):
-        await create_table()
+    await create_table()
+    sub_app_lifespan_context = sub_app.lifespan(app)
+    await sub_app_lifespan_context.__aenter__()
+    try:
         yield
+    finally:
+        await sub_app_lifespan_context.__aexit__(None, None, None)
+
 
 api = FastAPI(lifespan=lifespan)
 api.mount("/agents", sub_app)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(api, port=7777, host="0.0.0.0")
