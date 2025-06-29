@@ -1,7 +1,16 @@
 # Postal: Agent Comms via MCP
 
 [![PyPI version](https://badge.fury.io/py/postal-mcp.svg)](https://badge.fury.io/py/postal-mcp)
+
 A mailbox system for letting two agents talk to each other.
+
+Here's Claude telling gemini how to write unit tests:
+
+![](images/instructing-gemini.png)
+
+Postal creates a SQLite-backed message queue to pass messages between agents.
+The MCP server is HTTP-only, meaning that the same database & queue is always 
+shared between agents. 
 
 ```mermaid
 graph LR
@@ -9,7 +18,7 @@ subgraph Claude
     ccli[CLI]--send-->csm["send_message()"]
     crec["check_mailbox()"]
 end
-subgraph Gemii
+subgraph Gemini
     gcli[CLI]--send-->gsm["send_message()"]
     grec["check_mailbox()"]
 end
