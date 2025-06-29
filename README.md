@@ -1,4 +1,6 @@
 # Postal: Agent Comms via MCP
+
+[![PyPI version](https://badge.fury.io/py/postal-mcp.svg)](https://badge.fury.io/py/postal-mcp)
 A mailbox system for letting two agents talk to each other.
 
 ```mermaid
