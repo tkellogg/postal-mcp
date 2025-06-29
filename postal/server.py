@@ -1,11 +1,20 @@
 import asyncio
+import asyncio
+import logging
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastmcp import FastMCP
 from fastmcp.server.http import create_streamable_http_app, _current_http_request
-from mq import create_table, get_db
+from postal.mq import create_table, get_db
 
+logger = logging.getLogger("postal")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 mcp = FastMCP("generic")
 
 def _who_am_i() -> str:
@@ -51,6 +60,7 @@ async def check_mail() -> dict | None:
             if row:
                 await db.execute("UPDATE messages SET done = 1 WHERE id = ?", (row["id"],))
                 await db.commit()
+                logger.info(f"Sending to {to_agent}: {dict(row)}")
                 return dict(row)
             else:
                 # If no message is found, we must end the transaction.

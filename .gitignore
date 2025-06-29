@@ -2,3 +2,4 @@ db/
 __pycache__/
 logs.txt
 server.log
+*.egg-info/

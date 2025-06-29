@@ -1,12 +1,29 @@
 [project]
-name = "postal"
+name = "postal-mcp"
 version = "0.1.0"
 description = "A mailbox system for MCP, so that two agents can chat"
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [{ name = "Tim Kellogg", email = "timothy.kellogg@gmail.com" }]
+license = "Apache-2.0"
 dependencies = [
     "aiosqlite>=0.21.0",
     "fastapi>=0.115.14",
     "fastmcp>=2.9.2",
     "uvicorn>=0.34.3",
 ]
+
+[project.scripts]
+postal = "postal.server:main"
+
+[project.urls]
+"Homepage" = "https://github.com/tkellogg/postal-mcp"
+"Bug Tracker" = "https://github.com/tkellogg/postal-mcp/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["postal*"]
